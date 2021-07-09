@@ -5,6 +5,7 @@ use regex::Regex;
 use configparser::ini::Ini;
 
 pub struct IswRsBase {
+    m_sys_fs_file : String,
     m_cfg_file: String,
     m_cfg_parser: Ini,
 }
@@ -20,6 +21,7 @@ impl IswRsBase {
 
     pub fn new(cfg_file: String) -> IswRsBase {
         let s = IswRsBase {
+            m_sys_fs_file: IswRsBase::IO_FILE.to_string(),
             m_cfg_file: cfg_file,
             m_cfg_parser: Ini::new(),
         };
@@ -35,6 +37,7 @@ impl IswRsBase {
             }
         }
     }
+
     fn get_numeric_property(&self, section: String, key: String) -> i64
     {
         match self.m_cfg_parser.get(section.as_str(),
@@ -68,6 +71,7 @@ impl IswRsBase {
             }
         }
     }
+
     pub fn set_cooler_boost(&mut self, on: bool) {
         let value: i64;
         let base_address = self.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ADDRESS_IDENTIFIER.to_string());
@@ -77,21 +81,23 @@ impl IswRsBase {
         } else {
             value = self.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_OFF.to_string());
         }
-        self.write_chunk(IswRsBase::IO_FILE.to_string(), base_address as u64, value as u16);
+        self.write_chunk(base_address as u64, value as u16);
     }
-    pub fn write_chunk(&self, file: String, base_address: u64, value: u16) {
-        match std::fs::OpenOptions::new().write(true).open(file.clone()) {
+
+    pub fn write_chunk(&self, base_address: u64, value: u16) {
+        match std::fs::OpenOptions::new().write(true).open(self.m_sys_fs_file.clone()) {
             Ok(mut f) => {
                 f.seek(SeekFrom::Start(base_address)).expect("Address does not exist");
                 f.write(&value.to_le_bytes()).expect("Could not write to file");
             }
             Err(e) => {
-                panic!("Opening file <{}> failed with <{}>", file.clone(), e);
+                panic!("Opening file <{}> failed with <{}>", self.m_sys_fs_file.clone(), e);
             }
         }
     }
-    pub fn read_chunk(&self, file: String, base_address: u64) -> i16{
-        match std::fs::OpenOptions::new().read(true).open(file.clone()) {
+
+    pub fn read_chunk(&self, base_address: u64) -> i16{
+        match std::fs::OpenOptions::new().read(true).open(self.m_sys_fs_file.clone()) {
             Ok(mut f) => {
                 let mut buf = [0, 0];
                 f.seek(SeekFrom::Start(base_address)).expect("Address does not exist");
@@ -100,7 +106,7 @@ impl IswRsBase {
                 return i16::from_le_bytes(buf);
             }
             Err(e) => {
-                panic!("Opening file <{}> failed with <{}>", file.clone(), e);
+                panic!("Opening file <{}> failed with <{}>", self.m_sys_fs_file.clone(), e);
             }
         }
     }
