@@ -11,6 +11,7 @@ impl IswRsBase {
     const COOLER_BOOST_OFF: &'static str = "cooler_boost_off";
     const COOLER_BOOST_ON: &'static str = "cooler_boost_on";
     const COOLER_BOOST_ADDRESS_IDENTIFIER: &'static str = "cooler_boost_address";
+    const BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER: &'static str = "battery_charging_threshold_address";
     const IO_FILE: &'static str = "/sys/kernel/debug/ec/ec0/io";
     //const IO_FILE: &'static str = "dump.sys";
 
@@ -25,8 +26,13 @@ impl IswRsBase {
         return s;
     }
 
-    pub fn set_battery_threshold(&mut self, lower : u8, upper: u8) {
-
+    pub fn set_battery_threshold(&mut self, t : u8) -> bool{
+        if t >= 20 && t <= 100 {
+            let base_address = self.m_config_ops.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER.to_string());
+            self.raw_access.write_hw(base_address, (t as u16) + 128);
+            return true;
+        }
+        return false;
     }
 
     pub fn set_cooler_boost(&mut self, on: bool) {
