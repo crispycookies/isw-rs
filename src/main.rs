@@ -5,5 +5,5 @@ mod isw_rs_base;
 fn main() {
     let mut test = IswRsBase::new("isw.conf".to_string());
     test.load_config();
-    test.set_cooler_boost(true);
+    test.set_cooler_boost(false);
 }

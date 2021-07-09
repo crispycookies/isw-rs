@@ -51,13 +51,11 @@ impl IswRsBase {
                 } else {
                     return i64::from_str_radix(e.as_str(), 10).expect("Could not parse value");
                 }
-
-
             }
         }
     }
 
-    fn get_base_address(&self, section: String, address_of : String) -> i64
+    fn get_base_address(&self, section: String, address_of: String) -> i64
     {
         match self.m_cfg_parser.get(section.as_str(),
                                     &*IswRsBase::ADDRESS_PROFILE.to_string()) {
@@ -79,13 +77,27 @@ impl IswRsBase {
         } else {
             value = self.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_OFF.to_string());
         }
-        self.single_write(IswRsBase::IO_FILE.to_string(), base_address as u64, value as u16);
+        self.write_chunk(IswRsBase::IO_FILE.to_string(), base_address as u64, value as u16);
     }
-    pub fn single_write(&self, file: String, base_address: u64, value: u16) {
+    pub fn write_chunk(&self, file: String, base_address: u64, value: u16) {
         match std::fs::OpenOptions::new().write(true).open(file.clone()) {
             Ok(mut f) => {
                 f.seek(SeekFrom::Start(base_address)).expect("Address does not exist");
                 f.write(&value.to_le_bytes()).expect("Could not write to file");
+            }
+            Err(e) => {
+                panic!("Opening file <{}> failed with <{}>", file.clone(), e);
+            }
+        }
+    }
+    pub fn read_chunk(&self, file: String, base_address: u64) -> i16{
+        match std::fs::OpenOptions::new().read(true).open(file.clone()) {
+            Ok(mut f) => {
+                let mut buf = [0, 0];
+                f.seek(SeekFrom::Start(base_address)).expect("Address does not exist");
+                f.read(&mut buf).expect("Could not write to file");
+
+                return i16::from_le_bytes(buf);
             }
             Err(e) => {
                 panic!("Opening file <{}> failed with <{}>", file.clone(), e);
