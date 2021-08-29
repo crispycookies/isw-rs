@@ -26,8 +26,7 @@ impl IswConfigOps {
         }
     }
 
-    pub fn get_numeric_property(&self, section: String, key: String) -> u64
-    {
+    pub fn get_numeric_property(&self, section: String, key: String) -> u64 {
         match self.m_cfg_parser.get(section.as_str(),
                                     key.as_str()) {
             None => {
@@ -46,8 +45,7 @@ impl IswConfigOps {
         }
     }
 
-    pub fn get_base_address(&self, section: String, address_of: String) -> u64
-    {
+    pub fn get_base_address(&self, section: String, address_of: String) -> u64 {
         match self.m_cfg_parser.get(section.as_str(),
                                     &*IswConfigOps::ADDRESS_PROFILE.to_string()) {
             None => {
@@ -59,5 +57,4 @@ impl IswConfigOps {
             }
         }
     }
-
 }
