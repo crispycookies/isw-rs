@@ -23,7 +23,7 @@ struct Opts {
     /// Sets Battery-Charging threshold; Accepts any value between 20 and 100
     #[clap(long)]
     battery: Option<u8>,
-    /// Raw Access(Manually Reading and Writing values to the Controller)
+    /// Raw Access(Manually Reading and Writing values from/to the Controller)
     #[clap(subcommand)]
     raw: Raw,
 }
@@ -32,10 +32,14 @@ struct Opts {
 enum Raw {
     /// Write to Controller
     #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
-    write(WriteHandler),
+    Write(WriteHandler),
     /// Read from Controller
     #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
-    read(ReadHandler)
+    Read(ReadHandler),
+    /// Read from Controller
+    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    Get(StateGetter)
+
 }
 
 /// Subcommand for Writing to Controller
@@ -55,6 +59,20 @@ struct ReadHandler {
     /// Address to read from
     #[clap(short)]
     address: u64,
+}
+
+/// Subcommand for getting States from Controller
+#[derive(Clap)]
+struct StateGetter {
+    /// Gets state of Coolerboost
+    #[clap(short, long)]
+    boost: bool,
+    /// SeGets state of ts USB-backlight
+    #[clap(short, long)]
+    usb_backlight: bool,
+    /// Gets Battery-Charging threshold
+    #[clap(long)]
+    battery: bool
 }
 
 fn run_boost(boost: String, isw : & mut IswRsBase) {
@@ -104,6 +122,50 @@ fn run_write(address: u64, value : u16, isw : & mut IswRsBase) {
     isw.raw_access.write_hw(address, value);
 }
 
+fn run_get_battery(isw : & mut IswRsBase) {
+    println!("Battery threshold: {}", isw.get_battery_threshold());
+}
+
+fn run_get_backlight(isw : & mut IswRsBase) {
+    match isw.get_usb_backlight() {
+        UsbBacklightKind::Off => {
+            println!("USB-Backlight is off")
+        }
+        UsbBacklightKind::Half => {
+            println!("USB-Backlight is at half-strength")
+        }
+        UsbBacklightKind::Full => {
+            println!("USB-Backlight is at full-strength")
+        }
+        UsbBacklightKind::None => {
+            println!("No USB-Backlight detected")
+        }
+    }
+}
+
+fn run_get_boost(isw : & mut IswRsBase) {
+    match isw.get_cooler_boost() {
+        true => {
+            println!("Coolerboost is on")
+        }
+        false => {
+            println!("Coolerboost is off")
+        }
+    }
+}
+
+fn run_getters(getter: StateGetter,  isw : & mut IswRsBase) {
+    if getter.battery {
+        run_get_battery(isw);
+    }
+    if getter.usb_backlight {
+        run_get_backlight(isw);
+    }
+    if getter.boost {
+        run_get_boost(isw);
+    }
+}
+
 fn parse() {
     let opts: Opts = Opts::parse();
 
@@ -127,11 +189,14 @@ fn parse() {
         }
     }
     match opts.raw {
-        Raw::write(write) => {
+        Raw::Write(write) => {
             run_write(write.address, write.value, &mut isw);
         }
-        Raw::read(read) => {
+        Raw::Read(read) => {
             run_read(read.address, &mut isw);
+        }
+        Raw::Get(getter) => {
+            run_getters(getter, &mut isw);
         }
     }
 }
