@@ -85,7 +85,6 @@ impl IswRsBase {
         }
         return false;
     }
-
     pub fn get_battery_threshold(&mut self) -> u8 {
         let base_address = self.m_config_ops.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER.to_string());
         let read = self.raw_access.read_hw(base_address) - 128;
@@ -103,7 +102,6 @@ impl IswRsBase {
         }
         self.raw_access.write_hw(base_address, value as u16);
     }
-
     pub fn get_cooler_boost(&mut self) -> bool {
         let base_address = self.m_config_ops.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ADDRESS_IDENTIFIER.to_string());
         let is_on = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ON.to_string());
