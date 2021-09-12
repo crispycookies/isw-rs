@@ -6,7 +6,7 @@ mod isw_config_ops;
 
 use clap::{AppSettings, Clap};
 
-/// ISW-rs
+/// ISW-clone written in Rust
 #[derive(Clap)]
 #[clap(version = "0.1", author = "Tobias Egger")]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
