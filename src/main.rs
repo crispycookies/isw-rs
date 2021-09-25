@@ -38,8 +38,13 @@ enum Raw {
     Read(ReadHandler),
     /// Read from Controller
     #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
-    Get(StateGetter)
-
+    Get(StateGetter),
+    /// Read CPU-Data
+    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    CPU(CPUHandler),
+    /// Read GPU-Data
+    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    GPU(GPUHandler)
 }
 
 /// Subcommand for Writing to Controller
@@ -65,7 +70,7 @@ struct ReadHandler {
 #[derive(Clap)]
 struct StateGetter {
     /// Gets state of Coolerboost
-    #[clap(short, long)]
+    #[clap(long)]
     boost: bool,
     /// SeGets state of ts USB-backlight
     #[clap(short, long)]
@@ -73,6 +78,34 @@ struct StateGetter {
     /// Gets Battery-Charging threshold
     #[clap(long)]
     battery: bool
+}
+
+/// Subcommand for Reading CPU-Data
+#[derive(Clap)]
+struct CPUHandler {
+    /// CPU-Temperature
+    #[clap(short, long)]
+    temperature : bool,
+    /// CPU-Fan RPM
+    #[clap(short, long)]
+    rpm : bool,
+    /// CPU-Fan Speed
+    #[clap(short, long)]
+    speed : bool,
+}
+
+/// Subcommand for Reading CPU-Data
+#[derive(Clap)]
+struct GPUHandler {
+    /// CPU-Temperature
+    #[clap(short, long)]
+    temperature : bool,
+    /// CPU-Fan RPM
+    #[clap(short, long)]
+    rpm : bool,
+    /// CPU-Fan Speed
+    #[clap(short, long)]
+    speed : bool,
 }
 
 fn run_boost(boost: String, isw : & mut IswRsBase) {
@@ -166,6 +199,54 @@ fn run_getters(getter: StateGetter,  isw : & mut IswRsBase) {
     }
 }
 
+fn run_get_cpu_rpm(isw : & mut IswRsBase) {
+    println!("CPU-Fan rpm: {}", isw.get_cpu_fan_rpm());
+}
+
+fn run_get_cpu_speed(isw : & mut IswRsBase) {
+    println!("CPU-Fan speed: {}", isw.get_cpu_fan_speed());
+}
+
+fn run_get_cpu_temp(isw : & mut IswRsBase) {
+    println!("CPU temperature: {}", isw.get_cpu_temp());
+}
+
+fn run_get_gpu_rpm(isw : & mut IswRsBase) {
+    println!("GPU-Fan rpm: {}", isw.get_gpu_fan_rpm());
+}
+
+fn run_get_gpu_speed(isw : & mut IswRsBase) {
+    println!("GPU-Fan speed: {}", isw.get_gpu_fan_speed());
+}
+
+fn run_get_gpu_temp(isw : & mut IswRsBase) {
+    println!("GPU temperature: {}", isw.get_gpu_temp());
+}
+
+fn run_cpu(cpu: CPUHandler,  isw : & mut IswRsBase) {
+    if cpu.rpm {
+        run_get_cpu_rpm(isw);
+    }
+    if cpu.speed {
+        run_get_cpu_speed(isw);
+    }
+    if cpu.temperature {
+        run_get_cpu_temp(isw);
+    }
+}
+
+fn run_gpu(gpu: GPUHandler,  isw : & mut IswRsBase) {
+    if gpu.rpm {
+        run_get_gpu_rpm(isw);
+    }
+    if gpu.speed {
+        run_get_gpu_speed(isw);
+    }
+    if gpu.temperature {
+        run_get_gpu_temp(isw);
+    }
+}
+
 fn parse() {
     let opts: Opts = Opts::parse();
 
@@ -197,6 +278,12 @@ fn parse() {
         }
         Raw::Get(getter) => {
             run_getters(getter, &mut isw);
+        }
+        Raw::CPU(cpu) => {
+            run_cpu(cpu, &mut isw);
+        }
+        Raw::GPU(gpu) => {
+            run_gpu(gpu, &mut isw);
         }
     }
 }
