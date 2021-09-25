@@ -29,6 +29,7 @@ struct Opts {
 }
 
 #[derive(Clap)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 enum Raw {
     /// Write to Controller
     #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
@@ -49,6 +50,7 @@ enum Raw {
 
 /// Subcommand for Writing to Controller
 #[derive(Clap)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct WriteHandler {
     /// Address where value will be written to
     #[clap(short)]
@@ -60,6 +62,7 @@ struct WriteHandler {
 
 /// Subcommand for Reading from Controller
 #[derive(Clap)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct ReadHandler {
     /// Address to read from
     #[clap(short)]
@@ -68,6 +71,7 @@ struct ReadHandler {
 
 /// Subcommand for getting States from Controller
 #[derive(Clap)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct StateGetter {
     /// Gets state of Coolerboost
     #[clap(long)]
@@ -82,6 +86,7 @@ struct StateGetter {
 
 /// Subcommand for Reading CPU-Data
 #[derive(Clap)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct CPUHandler {
     /// CPU-Temperature
     #[clap(short, long)]
@@ -96,6 +101,7 @@ struct CPUHandler {
 
 /// Subcommand for Reading CPU-Data
 #[derive(Clap)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct GPUHandler {
     /// CPU-Temperature
     #[clap(short, long)]
