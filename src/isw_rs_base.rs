@@ -35,137 +35,147 @@ impl IswRsBase {
 
     const FAN_DIVISOR_CONSTANT: u32 = 478000;
 
-    pub fn new(cfg_file: String) -> IswRsBase {
+    pub fn new(cfg_file: String) -> Result<IswRsBase, String> {
         let mut s = IswRsBase {
             raw_access: IswRawAccess::new(IswRsBase::IO_FILE.to_string()),
             m_config_ops: IswConfigOps::new(cfg_file),
         };
 
-        s.m_config_ops.load_config();
+        s.m_config_ops.load_config()?;
 
-        return s;
+        return Ok(s);
     }
     /// set USB Backlight
-    pub fn set_usb_backlight(&mut self, state: UsbBacklightKind) {
+    pub fn set_usb_backlight(&mut self, state: UsbBacklightKind) -> Result<(), String> {
         let value: u64;
-        let base_address = self.m_config_ops.get_base_address(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_ADDRESS_IDENTIFIER.to_string());
+        let base_address = self.m_config_ops.get_base_address(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_ADDRESS_IDENTIFIER.to_string())?;
 
         match state {
             UsbBacklightKind::Off => {
-                value = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_OFF.to_string());
+                value = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_OFF.to_string())?;
             }
             UsbBacklightKind::Half => {
-                value = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_HALF.to_string());
+                value = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_HALF.to_string())?;
             }
             UsbBacklightKind::Full => {
-                value = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_FULL.to_string());
+                value = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_FULL.to_string())?;
             }
             _ => {
-                return;
+                return Result::Err("No viable option provided".to_string());
             }
         }
 
-        self.raw_access.write_hw(base_address, value as u16);
+        self.raw_access.write_hw(base_address, value as u16)?;
+        Ok(())
     }
-    pub fn get_usb_backlight(&mut self) -> UsbBacklightKind {
-        let base_address = self.m_config_ops.get_base_address(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_ADDRESS_IDENTIFIER.to_string());
+    pub fn get_usb_backlight(&mut self) -> Result<UsbBacklightKind, String> {
+        let base_address = self.m_config_ops.get_base_address(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_ADDRESS_IDENTIFIER.to_string())?;
 
-        let half = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_HALF.to_string()) as u16;
-        let full = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_FULL.to_string()) as u16;
-        let off = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_OFF.to_string()) as u16;
+        let half = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_HALF.to_string())? as u16;
+        let full = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_FULL.to_string())? as u16;
+        let off = self.m_config_ops.get_numeric_property(IswRsBase::USB_BACKLIGHT.to_string(), IswRsBase::USB_BACKLIGHT_OFF.to_string())? as u16;
 
-        let value = self.raw_access.read_hw(base_address);
+        let value = self.raw_access.read_hw(base_address)?;
 
         if value == half {
-            return UsbBacklightKind::Half;
+            return Ok(UsbBacklightKind::Half);
         } else if value == full {
-            return UsbBacklightKind::Full;
+            return Ok(UsbBacklightKind::Full);
         } else if value == off {
-            return UsbBacklightKind::Off;
+            return Ok(UsbBacklightKind::Off);
         }
-        return UsbBacklightKind::None;
+        Ok(UsbBacklightKind::None)
     }
 
     /// set Battery Threshold
-    pub fn set_battery_threshold(&mut self, t: u8) -> bool {
-        if t >= 20 && t <= 100 {
-            let base_address = self.m_config_ops.get_numeric_property(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), IswRsBase::BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER.to_string());
-            self.raw_access.write_hw(base_address, (t as u16) + 128);
-            return true;
+    pub fn set_battery_threshold(&mut self, t: u8) -> Result<(), String> {
+        if t < 20 && t > 100 {
+            return Err("No viable threshold provided".to_string());
         }
-        return false;
+        let base_address = self.m_config_ops.get_numeric_property(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), IswRsBase::BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER.to_string())?;
+        self.raw_access.write_hw(base_address, (t as u16) + 128)?;
+        Ok(())
     }
-    pub fn get_battery_threshold(&mut self) -> u8 {
-        let base_address = self.m_config_ops.get_numeric_property(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), IswRsBase::BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER.to_string());
-        let read = self.raw_access.read_hw(base_address) - 128;
-        return read as u8;
+    pub fn get_battery_threshold(&mut self) -> Result<u8, String> {
+        let base_address = self.m_config_ops.get_numeric_property(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), IswRsBase::BATTERY_CHARGING_THRESHOLD_ADDRESS_IDENTIFIER.to_string())?;
+        let read = self.raw_access.read_hw(base_address)? - 128;
+        Ok(read as u8)
     }
 
     /// Set Coolerboost
-    pub fn set_cooler_boost(&mut self, on: bool) {
+    pub fn set_cooler_boost(&mut self, on: bool) -> Result<(), String> {
         let value: u64;
         let base_address = self.m_config_ops.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ADDRESS_IDENTIFIER.to_string());
 
         if on {
-            value = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ON.to_string());
+            value = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ON.to_string())?;
         } else {
-            value = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_OFF.to_string());
+            value = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_OFF.to_string())?;
         }
-        self.raw_access.write_hw(base_address, value as u16);
+        self.raw_access.write_hw(base_address.unwrap(), value as u16)?;
+        Ok(())
     }
-    pub fn get_cooler_boost(&mut self) -> bool {
-        let base_address = self.m_config_ops.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ADDRESS_IDENTIFIER.to_string());
-        let is_on = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ON.to_string());
+    pub fn get_cooler_boost(&mut self) -> Result<bool, String> {
+        let base_address = self.m_config_ops.get_base_address(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ADDRESS_IDENTIFIER.to_string())?;
+        let is_on = self.m_config_ops.get_numeric_property(IswRsBase::COOLER_BOOST.to_string(), IswRsBase::COOLER_BOOST_ON.to_string())?;
 
-        if self.raw_access.read_hw(base_address) == (is_on as u16) {
-            return true;
+        if self.raw_access.read_hw(base_address)? == (is_on as u16) {
+            return Ok(true);
         }
-        return false;
+        Ok(false)
     }
 
-    fn get_data<T: num::NumCast>(&self, address_of: String) -> T {
+    fn get_data<T: num::NumCast>(&self, address_of: String) -> Result<T, String> {
         let base_address = self.m_config_ops.get_base_address(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), address_of);
-        let read = self.raw_access.read_hw(base_address);
-        return num::cast(read).unwrap();
+        let read = self.raw_access.read_hw(base_address.unwrap())?;
+        Ok(num::cast(read).unwrap())
     }
 
-    fn get_temp(&mut self, address_of: String) -> f64 {
-        self.get_data(address_of)
+    fn get_temp(&mut self, address_of: String) -> Result<f64, String> {
+        let temp = self.get_data(address_of)?;
+        Ok(temp)
     }
 
-    pub fn get_gpu_temp(&mut self) -> f64 {
-        self.get_temp(IswRsBase::GPU_TEMP_ADDRESS_IDENTIFIER.to_string())
+    pub fn get_gpu_temp(&mut self) -> Result<f64, String> {
+        let temp = self.get_temp(IswRsBase::GPU_TEMP_ADDRESS_IDENTIFIER.to_string())?;
+        Ok(temp)
     }
 
-    pub fn get_cpu_temp(&mut self) -> f64 {
-        self.get_temp(IswRsBase::CPU_TEMP_ADDRESS_IDENTIFIER.to_string())
+    pub fn get_cpu_temp(&mut self) -> Result<f64, String> {
+        let temp = self.get_temp(IswRsBase::CPU_TEMP_ADDRESS_IDENTIFIER.to_string())?;
+        Ok(temp)
     }
 
-    fn get_fan_speed(&mut self, address_of: String) -> u16 {
-        self.get_data(address_of)
+    fn get_fan_speed(&mut self, address_of: String) -> Result<u16, String> {
+        let speed = self.get_data(address_of)?;
+        Ok(speed)
     }
 
-    pub fn get_gpu_fan_speed(&mut self) -> u16 {
-        self.get_fan_speed(IswRsBase::GPU_FAN_SPEED_ADDRESS_IDENTIFIER.to_string())
+    pub fn get_gpu_fan_speed(&mut self) -> Result<u16, String> {
+        let speed = self.get_fan_speed(IswRsBase::GPU_FAN_SPEED_ADDRESS_IDENTIFIER.to_string())?;
+        Ok(speed)
     }
 
-    pub fn get_cpu_fan_speed(&mut self) -> u16 {
-        self.get_fan_speed(IswRsBase::CPU_FAN_SPEED_ADDRESS_IDENTIFIER.to_string())
+    pub fn get_cpu_fan_speed(&mut self) -> Result<u16, String> {
+        let speed = self.get_fan_speed(IswRsBase::CPU_FAN_SPEED_ADDRESS_IDENTIFIER.to_string())?;
+        Ok(speed)
     }
 
-    fn get_fan_rpm(&mut self, address_of: String) -> u16 {
-        let value: u32 = self.get_data(address_of);
+    fn get_fan_rpm(&mut self, address_of: String) -> Result<u16, String> {
+        let value: u32 = self.get_data(address_of)?;
         if value == 0 {
-            return 0;
+            return Ok(0);
         }
-        return (IswRsBase::FAN_DIVISOR_CONSTANT / value) as u16;
+        Ok((IswRsBase::FAN_DIVISOR_CONSTANT / value) as u16)
     }
 
-    pub fn get_gpu_fan_rpm(&mut self) -> u16 {
-        self.get_fan_rpm(IswRsBase::GPU_FAN_RPM_ADDRESS_IDENTIFIER.to_string())
+    pub fn get_gpu_fan_rpm(&mut self) -> Result<u16, String> {
+        let rpm = self.get_fan_rpm(IswRsBase::GPU_FAN_RPM_ADDRESS_IDENTIFIER.to_string())?;
+        Ok(rpm)
     }
 
-    pub fn get_cpu_fan_rpm(&mut self) -> u16 {
-        self.get_fan_rpm(IswRsBase::CPU_FAN_RPM_ADDRESS_IDENTIFIER.to_string())
+    pub fn get_cpu_fan_rpm(&mut self) -> Result<u16, String> {
+        let rpm = self.get_fan_rpm(IswRsBase::CPU_FAN_RPM_ADDRESS_IDENTIFIER.to_string())?;
+        Ok(rpm)
     }
 }

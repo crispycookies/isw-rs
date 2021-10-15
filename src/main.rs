@@ -7,12 +7,12 @@ mod isw_config_ops;
 use clap::{AppSettings, Clap};
 
 /// ISW-clone written in Rust
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(version = "0.1", author = "Tobias Egger")]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct Opts {
     /// Use custom isw-config file
-    #[clap(short, long, default_value="isw.conf")]
+    #[clap(short, long, default_value = "isw.conf")]
     config: String,
     /// Enables Coolerboost with 'on', disables Coolerboost with 'off'
     #[clap(short, long)]
@@ -28,28 +28,28 @@ struct Opts {
     raw: Raw,
 }
 
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 enum Raw {
     /// Write to Controller
-    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    #[clap(version = "1.3", author = "Tobias Egger")]
     Write(WriteHandler),
     /// Read from Controller
-    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    #[clap(version = "1.3", author = "Tobias Egger")]
     Read(ReadHandler),
     /// Read from Controller
-    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    #[clap(version = "1.3", author = "Tobias Egger")]
     Get(StateGetter),
     /// Read CPU-Data
-    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
+    #[clap(version = "1.3", author = "Tobias Egger")]
     CPU(CPUHandler),
     /// Read GPU-Data
-    #[clap(version = "1.3", author = "Someone E. <someone_else@other.com>")]
-    GPU(GPUHandler)
+    #[clap(version = "1.3", author = "Tobias Egger")]
+    GPU(GPUHandler),
 }
 
 /// Subcommand for Writing to Controller
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct WriteHandler {
     /// Address where value will be written to
@@ -57,11 +57,11 @@ struct WriteHandler {
     address: u64,
     /// Value to be written
     #[clap(long)]
-    value: u16
+    value: u16,
 }
 
 /// Subcommand for Reading from Controller
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct ReadHandler {
     /// Address to read from
@@ -70,7 +70,7 @@ struct ReadHandler {
 }
 
 /// Subcommand for getting States from Controller
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct StateGetter {
     /// Gets state of Coolerboost
@@ -81,109 +81,140 @@ struct StateGetter {
     usb_backlight: bool,
     /// Gets Battery-Charging threshold
     #[clap(long)]
-    battery: bool
+    battery: bool,
 }
 
 /// Subcommand for Reading CPU-Data
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct CPUHandler {
     /// CPU-Temperature
     #[clap(short, long)]
-    temperature : bool,
+    temperature: bool,
     /// CPU-Fan RPM
     #[clap(short, long)]
-    rpm : bool,
+    rpm: bool,
     /// CPU-Fan Speed
     #[clap(short, long)]
-    speed : bool,
+    speed: bool,
 }
 
 /// Subcommand for Reading CPU-Data
-#[derive(Clap)]
+#[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct GPUHandler {
     /// CPU-Temperature
     #[clap(short, long)]
-    temperature : bool,
+    temperature: bool,
     /// CPU-Fan RPM
     #[clap(short, long)]
-    rpm : bool,
+    rpm: bool,
     /// CPU-Fan Speed
     #[clap(short, long)]
-    speed : bool,
+    speed: bool,
 }
 
-fn run_boost(boost: String, isw : & mut IswRsBase) {
+fn run_boost(boost: String, isw: &mut IswRsBase) {
+    let status: bool;
     match boost.as_ref() {
-        "off" => {
-            isw.set_cooler_boost(false);
-        },
-        "on" => {
-            isw.set_cooler_boost(true);
-        }
+        "off" => status = false,
+        "on" => status = true,
         _ => {
             panic!("Unrecognized option {}", boost);
         }
     }
+    match isw.set_cooler_boost(status) {
+        Ok(_) => {}
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_backlight(backlight: String, isw : & mut IswRsBase) {
+fn run_backlight(backlight: String, isw: &mut IswRsBase) {
+    let status: UsbBacklightKind;
     match backlight.as_ref() {
-        "off" => {
-            isw.set_usb_backlight(UsbBacklightKind::Off);
-        },
-        "half" => {
-            isw.set_usb_backlight(UsbBacklightKind::Half);
-        }
-        "full" => {
-            isw.set_usb_backlight(UsbBacklightKind::Full);
-        }
+        "off" => status = UsbBacklightKind::Off,
+        "half" => status = UsbBacklightKind::Half,
+        "full" => status = UsbBacklightKind::Full,
         _ => {
             panic!("Unrecognized option {}", backlight);
         }
     }
-}
-
-fn run_battery(battery: u8, isw : & mut IswRsBase) {
-    if battery >= 20 && battery <= 100 {
-        isw.set_battery_threshold(battery);
-    }else {
-        panic!("Cannot set value {}", battery);
+    match isw.set_usb_backlight(status) {
+        Ok(_) => {}
+        Err(error) => {
+            panic!("{}", error)
+        }
     }
 }
 
-fn run_read(address: u64, isw : & mut IswRsBase) {
-    println!("Value: {}", isw.raw_access.read_hw(address));
+fn run_battery(battery: u8, isw: &mut IswRsBase) {
+    match isw.set_battery_threshold(battery) {
+        Ok(_) => {}
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_write(address: u64, value : u16, isw : & mut IswRsBase) {
-    isw.raw_access.write_hw(address, value);
+fn run_read(address: u64, isw: &mut IswRsBase) {
+    match isw.raw_access.read_hw(address) {
+        Ok(val) => {
+            panic!("Value: {}", val);
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_battery(isw : & mut IswRsBase) {
-    println!("Battery threshold: {}", isw.get_battery_threshold());
+fn run_write(address: u64, value: u16, isw: &mut IswRsBase) {
+    match isw.raw_access.write_hw(address, value) {
+        Ok(_) => {}
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_backlight(isw : & mut IswRsBase) {
+fn run_get_battery(isw: &mut IswRsBase) {
+    match isw.get_battery_threshold() {
+        Ok(val) => {
+            println!("Battery threshold: {}", val);
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
+}
+
+fn run_get_backlight(isw: &mut IswRsBase) {
     match isw.get_usb_backlight() {
-        UsbBacklightKind::Off => {
-            println!("USB-Backlight is off")
+        Ok(val) => {
+            match val {
+                UsbBacklightKind::Off => {
+                    println!("USB-Backlight is off")
+                }
+                UsbBacklightKind::Half => {
+                    println!("USB-Backlight is at half-strength")
+                }
+                UsbBacklightKind::Full => {
+                    println!("USB-Backlight is at full-strength")
+                }
+                UsbBacklightKind::None => {
+                    println!("No USB-Backlight detected")
+                }
+            }
         }
-        UsbBacklightKind::Half => {
-            println!("USB-Backlight is at half-strength")
-        }
-        UsbBacklightKind::Full => {
-            println!("USB-Backlight is at full-strength")
-        }
-        UsbBacklightKind::None => {
-            println!("No USB-Backlight detected")
+        Err(error) => {
+            panic!("{}", error)
         }
     }
 }
 
-fn run_get_boost(isw : & mut IswRsBase) {
-    match isw.get_cooler_boost() {
+fn run_get_boost(isw: &mut IswRsBase) {
+    match isw.get_cooler_boost().unwrap() {
         true => {
             println!("Coolerboost is on")
         }
@@ -193,7 +224,7 @@ fn run_get_boost(isw : & mut IswRsBase) {
     }
 }
 
-fn run_getters(getter: StateGetter,  isw : & mut IswRsBase) {
+fn run_getters(getter: StateGetter, isw: &mut IswRsBase) {
     if getter.battery {
         run_get_battery(isw);
     }
@@ -205,31 +236,73 @@ fn run_getters(getter: StateGetter,  isw : & mut IswRsBase) {
     }
 }
 
-fn run_get_cpu_rpm(isw : & mut IswRsBase) {
-    println!("CPU-Fan rpm: {}", isw.get_cpu_fan_rpm());
+fn run_get_cpu_rpm(isw: &mut IswRsBase) {
+    match isw.get_cpu_fan_rpm() {
+        Ok(val) => {
+            println!("CPU-Fan rpm: {}", val)
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_cpu_speed(isw : & mut IswRsBase) {
-    println!("CPU-Fan speed: {}", isw.get_cpu_fan_speed());
+fn run_get_cpu_speed(isw: &mut IswRsBase) {
+    match isw.get_cpu_fan_speed() {
+        Ok(val) => {
+            println!("CPU-Fan speed: {}", val)
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_cpu_temp(isw : & mut IswRsBase) {
-    println!("CPU temperature: {}", isw.get_cpu_temp());
+fn run_get_cpu_temp(isw: &mut IswRsBase) {
+    match isw.get_cpu_temp() {
+        Ok(val) => {
+            println!("CPU temperature: {}", val)
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_gpu_rpm(isw : & mut IswRsBase) {
-    println!("GPU-Fan rpm: {}", isw.get_gpu_fan_rpm());
+fn run_get_gpu_rpm(isw: &mut IswRsBase) {
+    match isw.get_gpu_fan_rpm() {
+        Ok(val) => {
+            println!("GPU-Fan rpm: {}", val)
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_gpu_speed(isw : & mut IswRsBase) {
-    println!("GPU-Fan speed: {}", isw.get_gpu_fan_speed());
+fn run_get_gpu_speed(isw: &mut IswRsBase) {
+    match isw.get_gpu_fan_speed() {
+        Ok(val) => {
+            println!("GPU-Fan speed: {}", val)
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_get_gpu_temp(isw : & mut IswRsBase) {
-    println!("GPU temperature: {}", isw.get_gpu_temp());
+fn run_get_gpu_temp(isw: &mut IswRsBase) {
+    match isw.get_gpu_temp() {
+        Ok(val) => {
+            println!("GPU temperature: {}", val)
+        }
+        Err(error) => {
+            panic!("{}", error)
+        }
+    }
 }
 
-fn run_cpu(cpu: CPUHandler,  isw : & mut IswRsBase) {
+fn run_cpu(cpu: CPUHandler, isw: &mut IswRsBase) {
     if cpu.rpm {
         run_get_cpu_rpm(isw);
     }
@@ -241,7 +314,7 @@ fn run_cpu(cpu: CPUHandler,  isw : & mut IswRsBase) {
     }
 }
 
-fn run_gpu(gpu: GPUHandler,  isw : & mut IswRsBase) {
+fn run_gpu(gpu: GPUHandler, isw: &mut IswRsBase) {
     if gpu.rpm {
         run_get_gpu_rpm(isw);
     }
@@ -253,43 +326,52 @@ fn run_gpu(gpu: GPUHandler,  isw : & mut IswRsBase) {
     }
 }
 
-fn parse() {
-    let opts: Opts = Opts::parse();
-
-    let mut isw = IswRsBase::new(opts.config);
+fn run(isw: &mut IswRsBase, opts: Opts) {
     match opts.boost {
         None => {}
         Some(boost) => {
-            run_boost(boost, &mut isw);
+            run_boost(boost, isw);
         }
     }
     match opts.usb_backlight {
         None => {}
         Some(backlight) => {
-            run_backlight(backlight, &mut isw);
+            run_backlight(backlight, isw);
         }
     }
     match opts.battery {
         None => {}
         Some(battery) => {
-            run_battery(battery, &mut isw);
+            run_battery(battery, isw);
         }
     }
     match opts.raw {
         Raw::Write(write) => {
-            run_write(write.address, write.value, &mut isw);
+            run_write(write.address, write.value, isw);
         }
         Raw::Read(read) => {
-            run_read(read.address, &mut isw);
+            run_read(read.address, isw);
         }
         Raw::Get(getter) => {
-            run_getters(getter, &mut isw);
+            run_getters(getter, isw);
         }
         Raw::CPU(cpu) => {
-            run_cpu(cpu, &mut isw);
+            run_cpu(cpu, isw);
         }
         Raw::GPU(gpu) => {
-            run_gpu(gpu, &mut isw);
+            run_gpu(gpu, isw);
+        }
+    }
+}
+
+fn parse() {
+    let opts: Opts = Opts::parse();
+    match IswRsBase::new(opts.clone().config) {
+        Ok(mut isw) => {
+            run(&mut isw, opts.clone())
+        }
+        Err(error) => {
+            panic!("{}", error)
         }
     }
 }
