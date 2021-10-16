@@ -24,10 +24,8 @@ impl IswConfigOps {
 
     pub fn load_config(&mut self) -> Result<(), String> {
         self.m_cfg_parser = Ini::new();
-        match self.m_cfg_parser.load(self.m_cfg_file.as_str()) {
-            Ok(_) => Ok(()),
-            Err(error) => Err("Opening config failed with: ".to_string() + error.as_str())
-        }
+        self.m_cfg_parser.load(self.m_cfg_file.as_str())?;
+        Ok(())
     }
 
     pub fn get_numeric_property(&self, section: String, key: String) -> Result<u64, String> {
