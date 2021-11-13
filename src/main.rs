@@ -1,132 +1,26 @@
-use crate::isw_rs_base::{IswRsBase, UsbBacklightKind};
-
 mod isw_rs_base;
 mod isw_raw_access;
 mod isw_config_ops;
+mod isw_parse;
 
-use clap::{AppSettings, Clap};
+use crate::isw_rs_base::{IswRsBase, UsbBacklightKind};
+use clap::{Clap};
+use crate::isw_parse::{CPUHandler, GPUHandler, StateGetter, Raw, Opts, MiscHandler};
 
-/// ISW-clone written in Rust
-#[derive(Clap, Clone)]
-#[clap(version = "0.1", author = "Tobias Egger")]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-struct Opts {
-    /// Use custom isw-config file
-    #[clap(short, long, default_value = "isw.conf")]
-    config: String,
-    /// Enables Coolerboost with 'on', disables Coolerboost with 'off'
-    #[clap(short, long)]
-    boost: Option<String>,
-    /// Sets USB-backlight; 'off' for off, 'half' for half-strength, 'full' for full-strength
-    #[clap(short, long)]
-    usb_backlight: Option<String>,
-    /// Sets Battery-Charging threshold; Accepts any value between 20 and 100
-    #[clap(long)]
-    battery: Option<u8>,
-    /// Raw Access(Manually Reading and Writing values from/to the Controller)
-    #[clap(subcommand)]
-    raw: Raw,
-}
-
-#[derive(Clap, Clone)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-enum Raw {
-    /// Write to Controller
-    #[clap(version = "1.3", author = "Tobias Egger")]
-    Write(WriteHandler),
-    /// Read from Controller
-    #[clap(version = "1.3", author = "Tobias Egger")]
-    Read(ReadHandler),
-    /// Read from Controller
-    #[clap(version = "1.3", author = "Tobias Egger")]
-    Get(StateGetter),
-    /// Read CPU-Data
-    #[clap(version = "1.3", author = "Tobias Egger")]
-    CPU(CPUHandler),
-    /// Read GPU-Data
-    #[clap(version = "1.3", author = "Tobias Egger")]
-    GPU(GPUHandler),
-}
-
-/// Subcommand for Writing to Controller
-#[derive(Clap, Clone)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-struct WriteHandler {
-    /// Address where value will be written to
-    #[clap(short)]
-    address: u64,
-    /// Value to be written
-    #[clap(long)]
-    value: u16,
-}
-
-/// Subcommand for Reading from Controller
-#[derive(Clap, Clone)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-struct ReadHandler {
-    /// Address to read from
-    #[clap(short)]
-    address: u64,
-}
-
-/// Subcommand for getting States from Controller
-#[derive(Clap, Clone)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-struct StateGetter {
-    /// Gets state of Coolerboost
-    #[clap(long)]
-    boost: bool,
-    /// SeGets state of ts USB-backlight
-    #[clap(short, long)]
-    usb_backlight: bool,
-    /// Gets Battery-Charging threshold
-    #[clap(long)]
-    battery: bool,
-}
-
-/// Subcommand for Reading CPU-Data
-#[derive(Clap, Clone)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-struct CPUHandler {
-    /// CPU-Temperature
-    #[clap(short, long)]
-    temperature: bool,
-    /// CPU-Fan RPM
-    #[clap(short, long)]
-    rpm: bool,
-    /// CPU-Fan Speed
-    #[clap(short, long)]
-    speed: bool,
-}
-
-/// Subcommand for Reading CPU-Data
-#[derive(Clap, Clone)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
-struct GPUHandler {
-    /// CPU-Temperature
-    #[clap(short, long)]
-    temperature: bool,
-    /// CPU-Fan RPM
-    #[clap(short, long)]
-    rpm: bool,
-    /// CPU-Fan Speed
-    #[clap(short, long)]
-    speed: bool,
-}
-
-fn run_boost(boost: String, isw: &mut IswRsBase) {
-    let status: bool;
-    match boost.as_ref() {
-        "off" => status = false,
-        "on" => status = true,
-        _ => {
-            panic!("Unrecognized option {}", boost);
-        }
+fn is_either(a : String, b : String, value : String) -> Result<bool, String> {
+    if value == a {
+        return Ok(true)
+    } else if value == b {
+        return Ok(false)
     }
-    match isw.set_cooler_boost(status) {
-        Ok(_) => {}
+    return Err("Unrecognized option <".to_string() + value.as_str() + ">")
+}
+
+fn run_boost(boost: String, isw: &mut IswRsBase) -> Result<bool, String> {
+    match isw.set_cooler_boost(is_either("on".to_string(), "off".to_string(), boost)?) {
+        Ok(_) => {return Ok(true);}
         Err(error) => {
-            panic!("{}", error)
+            return Err("nn".to_string());
         }
     }
 }
@@ -326,25 +220,31 @@ fn run_gpu(gpu: GPUHandler, isw: &mut IswRsBase) {
     }
 }
 
-fn run(isw: &mut IswRsBase, opts: Opts) {
-    match opts.boost {
+fn run_misc(misc: MiscHandler, isw: &mut IswRsBase){
+    if misc.boost.is_some() {
+
+    }
+    match misc.boost {
         None => {}
         Some(boost) => {
             run_boost(boost, isw);
         }
     }
-    match opts.usb_backlight {
+    match misc.usb_backlight {
         None => {}
         Some(backlight) => {
             run_backlight(backlight, isw);
         }
     }
-    match opts.battery {
+    match misc.battery {
         None => {}
         Some(battery) => {
             run_battery(battery, isw);
         }
     }
+}
+
+fn run(isw: &mut IswRsBase, opts: Opts) {
     match opts.raw {
         Raw::Write(write) => {
             run_write(write.address, write.value, isw);
@@ -361,11 +261,14 @@ fn run(isw: &mut IswRsBase, opts: Opts) {
         Raw::GPU(gpu) => {
             run_gpu(gpu, isw);
         }
+        Raw::MISC(misc) => {
+            run_misc(misc, isw);
+        }
     }
 }
 
 fn parse() {
-    let opts: Opts = Opts::parse();
+    let opts: isw_parse::Opts = isw_parse::Opts::parse();
     match IswRsBase::new(opts.clone().config) {
         Ok(mut isw) => {
             run(&mut isw, opts.clone())
