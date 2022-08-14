@@ -6,15 +6,20 @@ pub struct IswConfigOps {
     m_cfg_parser: Ini,
 }
 
+impl Clone for IswConfigOps {
+    fn clone(&self) -> IswConfigOps {
+      IswConfigOps::new(self.m_cfg_file.clone())
+    }
+}
+
 impl IswConfigOps {
     const ADDRESS_PROFILE: &'static str = "address_profile";
 
     pub fn new(cfg_file: String) -> IswConfigOps {
-        let s = IswConfigOps {
+        IswConfigOps {
             m_cfg_file: cfg_file,
             m_cfg_parser: Ini::new(),
-        };
-        return s;
+        }
     }
 
     fn format_not_found_error(&self, x: String, y: String) -> String {

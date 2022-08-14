@@ -8,6 +8,7 @@ pub enum UsbBacklightKind {
     None,
 }
 
+#[derive(Clone)]
 pub struct IswRsBase {
     pub raw_access: IswRawAccess,
     m_config_ops: IswConfigOps,
@@ -31,7 +32,7 @@ impl IswRsBase {
     const CPU_FAN_SPEED_ADDRESS_IDENTIFIER: &'static str = "realtime_cpu_fan_speed_address";
     const GPU_FAN_RPM_ADDRESS_IDENTIFIER: &'static str = "realtime_gpu_fan_rpm_address";
     const CPU_FAN_RPM_ADDRESS_IDENTIFIER: &'static str = "realtime_cpu_fan_rpm_address";
-    const IO_FILE: &'static str = "/sys/kernel/debug/ec/ec0/io";
+    const IO_FILE: &'static str = "dump.sys2";
 
     const FAN_DIVISOR_CONSTANT: u32 = 478000;
 
@@ -126,8 +127,8 @@ impl IswRsBase {
     }
 
     fn get_data<T: num::NumCast>(&self, address_of: String) -> Result<T, String> {
-        let base_address = self.m_config_ops.get_base_address(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), address_of);
-        let read = self.raw_access.read_hw(base_address.unwrap())?;
+        let base_address = self.m_config_ops.get_base_address(IswRsBase::MSI_ADDRESS_DEFAULT.to_string(), address_of)?;
+        let read = self.raw_access.read_hw(base_address)?;
         Ok(num::cast(read).unwrap())
     }
 
@@ -147,8 +148,10 @@ impl IswRsBase {
     }
 
     fn get_fan_speed(&mut self, address_of: String) -> Result<u16, String> {
-        let speed = self.get_data(address_of)?;
-        Ok(speed)
+        let speed: u16 = self.get_data(address_of)?;
+        // We are reading two bytes, but only need the last nibble...
+        let corrected = speed & 0x000000FF;
+        Ok(corrected)
     }
 
     pub fn get_gpu_fan_speed(&mut self) -> Result<u16, String> {

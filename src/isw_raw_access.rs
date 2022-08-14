@@ -1,6 +1,7 @@
 use std::io::prelude::*;
 use std::io::SeekFrom;
 
+#[derive(Clone)]
 pub struct IswRawAccess {
     m_sys_fs_file: String,
 }

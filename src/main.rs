@@ -3,8 +3,12 @@ use crate::isw_rs_base::{IswRsBase, UsbBacklightKind};
 mod isw_rs_base;
 mod isw_raw_access;
 mod isw_config_ops;
+mod online;
+mod dispatch;
 
 use clap::{AppSettings, Clap};
+use crate::dispatch::Dispatch;
+use crate::online::Online;
 
 /// ISW-clone written in Rust
 #[derive(Clap, Clone)]
@@ -12,17 +16,8 @@ use clap::{AppSettings, Clap};
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct Opts {
     /// Use custom isw-config file
-    #[clap(short, long, default_value = "isw.conf")]
+    #[clap(short, long, default_value = "")]
     config: String,
-    /// Enables Coolerboost with 'on', disables Coolerboost with 'off'
-    #[clap(short, long)]
-    boost: Option<String>,
-    /// Sets USB-backlight; 'off' for off, 'half' for half-strength, 'full' for full-strength
-    #[clap(short, long)]
-    usb_backlight: Option<String>,
-    /// Sets Battery-Charging threshold; Accepts any value between 20 and 100
-    #[clap(long)]
-    battery: Option<u8>,
     /// Raw Access(Manually Reading and Writing values from/to the Controller)
     #[clap(subcommand)]
     raw: Raw,
@@ -31,6 +26,9 @@ struct Opts {
 #[derive(Clap, Clone)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 enum Raw {
+    /// Common Functions (Coolerboost etc.)
+    #[clap(version = "1.3", author = "Tobias Egger")]
+    Common(CommonHandler),
     /// Write to Controller
     #[clap(version = "1.3", author = "Tobias Egger")]
     Write(WriteHandler),
@@ -46,6 +44,24 @@ enum Raw {
     /// Read GPU-Data
     #[clap(version = "1.3", author = "Tobias Egger")]
     GPU(GPUHandler),
+}
+
+/// Subcommand for Writing to Controller
+#[derive(Clap, Clone)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
+struct CommonHandler {
+    /// Enables Coolerboost with 'on', disables Coolerboost with 'off'
+    #[clap(short, long)]
+    boost: Option<String>,
+    /// Enables a websocket to listen to at 127.0.0.1:6799 & 6800
+    #[clap(short, long)]
+    socket: Option<bool>,
+    /// Sets USB-backlight; 'off' for off, 'half' for half-strength, 'full' for full-strength
+    #[clap(short, long)]
+    usb_backlight: Option<String>,
+    /// Sets Battery-Charging threshold; Accepts any value between 20 and 100
+    #[clap(long)]
+    battery: Option<u8>,
 }
 
 /// Subcommand for Writing to Controller
@@ -154,6 +170,30 @@ fn run_battery(battery: u8, isw: &mut IswRsBase) {
         Ok(_) => {}
         Err(error) => {
             panic!("{}", error)
+        }
+    }
+}
+
+fn run_socket(enable: bool, isw: &mut IswRsBase) {
+    if enable {
+        let mut sock = Online::new("127.0.0.1".to_string(), 6800, 6799).expect("Cannot open Socket");
+        let mut dispatch = Dispatch::new(isw);
+        loop {
+            match sock.receive() {
+                Ok(value) => {
+                    if !value.is_empty() {
+                        let response = dispatch.dispatch(value);
+                        if !response.is_empty() {
+                           sock.send(response);
+                        } else {
+                            println!("No valid response for Websocket could be formed");
+                        }
+                    } else {
+                       println!("Receiving data via Websocket failed");
+                    }
+                }
+                Err(_) => {}
+            }
         }
     }
 }
@@ -314,6 +354,33 @@ fn run_cpu(cpu: CPUHandler, isw: &mut IswRsBase) {
     }
 }
 
+fn run_common(common: CommonHandler, isw: &mut IswRsBase) {
+    match common.boost {
+        None => {}
+        Some(boost) => {
+            run_boost(boost, isw);
+        }
+    }
+    match common.usb_backlight {
+        None => {}
+        Some(backlight) => {
+            run_backlight(backlight, isw);
+        }
+    }
+    match common.battery {
+        None => {}
+        Some(battery) => {
+            run_battery(battery, isw);
+        }
+    }
+    match common.socket {
+        None => {}
+        Some(enable) => {
+            run_socket(enable, isw);
+        }
+    }
+}
+
 fn run_gpu(gpu: GPUHandler, isw: &mut IswRsBase) {
     if gpu.rpm {
         run_get_gpu_rpm(isw);
@@ -327,6 +394,7 @@ fn run_gpu(gpu: GPUHandler, isw: &mut IswRsBase) {
 }
 
 fn run(isw: &mut IswRsBase, opts: Opts) {
+    /*
     match opts.boost {
         None => {}
         Some(boost) => {
@@ -344,7 +412,7 @@ fn run(isw: &mut IswRsBase, opts: Opts) {
         Some(battery) => {
             run_battery(battery, isw);
         }
-    }
+    }*/
     match opts.raw {
         Raw::Write(write) => {
             run_write(write.address, write.value, isw);
@@ -360,6 +428,9 @@ fn run(isw: &mut IswRsBase, opts: Opts) {
         }
         Raw::GPU(gpu) => {
             run_gpu(gpu, isw);
+        }
+        Raw::Common(common) => {
+            run_common(common, isw);
         }
     }
 }
