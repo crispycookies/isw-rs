@@ -32,7 +32,7 @@ impl IswRsBase {
     const CPU_FAN_SPEED_ADDRESS_IDENTIFIER: &'static str = "realtime_cpu_fan_speed_address";
     const GPU_FAN_RPM_ADDRESS_IDENTIFIER: &'static str = "realtime_gpu_fan_rpm_address";
     const CPU_FAN_RPM_ADDRESS_IDENTIFIER: &'static str = "realtime_cpu_fan_rpm_address";
-    const IO_FILE: &'static str = "dump.sys2";
+    const IO_FILE: &'static str = "/sys/kernel/debug/ec/ec0/io";
 
     const FAN_DIVISOR_CONSTANT: u32 = 478000;
 
