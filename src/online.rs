@@ -2,14 +2,14 @@ use std::net::UdpSocket;
 use std::str::{from_utf8};
 
 pub struct Online {
-    port_tx : u16,
-    ip : String,
-    socket : UdpSocket
+    port_tx: u16,
+    ip: String,
+    socket: UdpSocket
 }
 
 impl Online {
     const BUFFER_SIZE: usize = 1024;
-    pub fn new(ip: String, port_rx: u16, port_tx: u16) -> Result<Online, std::io::Error>{
+    pub fn new(ip: String, port_rx: u16, port_tx: u16) -> Result<Online, std::io::Error> {
         let build = ip.clone() + ":" + &*port_rx.to_string();
         let socket = UdpSocket::bind(build)?;
 
@@ -31,18 +31,20 @@ impl Online {
         }
     }
 
-    pub fn receive(&mut self) -> Result<String, std::io::Error>{
+    pub fn receive(&mut self) -> Result<String, std::io::Error> {
         let mut buf = [0; Online::BUFFER_SIZE];
-        match self.socket.recv_from(&mut buf){
+        match self.socket.recv_from(&mut buf) {
             Ok(val) => {
                 let addr = val.1;
 
-                if addr.to_string() != self.socket.local_addr().unwrap().to_string()
+                println!("own {}, foreign {}", self.socket.local_addr().unwrap().ip().to_string(), addr.ip().to_string());
+
+                if addr.ip().to_string() != self.socket.local_addr().unwrap().ip().to_string()
                 {
-                    return Ok("".to_string())
+                    return Ok("".to_string());
                 }
 
-                match from_utf8(&buf){
+                match from_utf8(&buf) {
                     Ok(data) => {
                         let sequence = data.trim_matches(char::from(0)).to_string();
                         Ok(sequence.to_string())
@@ -56,6 +58,5 @@ impl Online {
                 Err(val)
             }
         }
-
     }
 }

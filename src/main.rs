@@ -1,14 +1,24 @@
 use crate::isw_rs_base::{IswRsBase, UsbBacklightKind};
+use serde::{Deserialize, Serialize};
 
 mod isw_rs_base;
 mod isw_raw_access;
 mod isw_config_ops;
 mod online;
-mod dispatch;
 
 use clap::{AppSettings, Clap};
-use crate::dispatch::Dispatch;
 use crate::online::Online;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct ReceivedOption {
+    pub cmd: String,
+    pub option: String
+}
+#[derive(Serialize, Deserialize, Clone)]
+struct Response {
+    pub id: String,
+    pub value: String
+}
 
 /// ISW-clone written in Rust
 #[derive(Clap, Clone)]
@@ -16,7 +26,7 @@ use crate::online::Online;
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct Opts {
     /// Use custom isw-config file
-    #[clap(short, long, default_value = "")]
+    #[clap(short, long, default_value = "/home/tobi/CLionProjects/isw-rs/isw.conf")]
     config: String,
     /// Raw Access(Manually Reading and Writing values from/to the Controller)
     #[clap(subcommand)]
@@ -177,17 +187,123 @@ fn run_battery(battery: u8, isw: &mut IswRsBase) {
 fn run_socket(enable: bool, isw: &mut IswRsBase) {
     if enable {
         let mut sock = Online::new("127.0.0.1".to_string(), 6800, 6799).expect("Cannot open Socket");
-        let mut dispatch = Dispatch::new(isw);
         loop {
             match sock.receive() {
                 Ok(value) => {
                     if !value.is_empty() {
-                        let response = dispatch.dispatch(value);
-                        if !response.is_empty() {
-                           sock.send(response);
-                        } else {
-                            println!("No valid response for Websocket could be formed");
-                        }
+                        match serde_json::from_str::<ReceivedOption>(value.as_str()) {
+                            Ok(received) => {
+                                if received.cmd == "cpu_temp"{
+                                    match isw.get_cpu_temp() {
+                                        Ok(value) => {
+                                            let json = Response {
+                                                id: "cpu_temp".to_string(),
+                                                value: value.to_string()
+                                            };
+                                            match serde_json::to_string(&json) {
+                                                Ok(to_be_sent) => {
+                                                    let trimmed = to_be_sent.trim().to_string();
+                                                    sock.send(trimmed);
+                                                }
+                                                Err(_) => {}
+                                            }
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+                                if received.cmd == "gpu_temp"{
+                                    match isw.get_gpu_temp() {
+                                        Ok(value) => {
+                                            let json = Response {
+                                                id: "gpu_temp".to_string(),
+                                                value: value.to_string()
+                                            };
+                                            match serde_json::to_string(&json) {
+                                                Ok(to_be_sent) => {
+                                                    let trimmed = to_be_sent.trim().to_string();
+                                                    sock.send(trimmed);
+                                                }
+                                                Err(_) => {}
+                                            }
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+                                if received.cmd == "cpu_fan_speed"{
+                                    match isw.get_gpu_fan_speed() {
+                                        Ok(value) => {
+                                            let json = Response {
+                                                id: "cpu_fan_speed".to_string(),
+                                                value: value.to_string()
+                                            };
+                                            match serde_json::to_string(&json) {
+                                                Ok(to_be_sent) => {
+                                                    let trimmed = to_be_sent.trim().to_string();
+                                                    sock.send(trimmed);
+                                                }
+                                                Err(_) => {}
+                                            }
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+                                if received.cmd == "gpu_fan_speed"{
+                                    match isw.get_cpu_fan_speed() {
+                                        Ok(value) => {
+                                            let json = Response {
+                                                id: "gpu_fan_speed".to_string(),
+                                                value: value.to_string()
+                                            };
+                                            match serde_json::to_string(&json) {
+                                                Ok(to_be_sent) => {
+                                                    let trimmed = to_be_sent.trim().to_string();
+                                                    sock.send(trimmed);
+                                                }
+                                                Err(_) => {}
+                                            }
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+                                if received.cmd == "cpu_fan_rpm"{
+                                    match isw.get_cpu_fan_rpm() {
+                                        Ok(value) => {
+                                            let json = Response {
+                                                id: "cpu_fan_rpm".to_string(),
+                                                value: value.to_string()
+                                            };
+                                            match serde_json::to_string(&json) {
+                                                Ok(to_be_sent) => {
+                                                    let trimmed = to_be_sent.trim().to_string();
+                                                    sock.send(trimmed);
+                                                }
+                                                Err(_) => {}
+                                            }
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+                                if received.cmd == "gpu_fan_rpm"{
+                                    match isw.get_gpu_fan_rpm() {
+                                        Ok(value) => {
+                                            let json = Response {
+                                                id: "gpu_fan_rpm".to_string(),
+                                                value: value.to_string()
+                                            };
+                                            match serde_json::to_string(&json) {
+                                                Ok(to_be_sent) => {
+                                                    let trimmed = to_be_sent.trim().to_string();
+                                                    sock.send(trimmed);
+                                                }
+                                                Err(_) => {}
+                                            }
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+                            }
+                            Err(_) => {}
+                        };
                     } else {
                        println!("Receiving data via Websocket failed");
                     }
